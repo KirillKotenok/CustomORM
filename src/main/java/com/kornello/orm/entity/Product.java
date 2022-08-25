@@ -1,6 +1,5 @@
 package com.kornello.orm.entity;
 
-import com.kornello.orm.annotation.Column;
 import com.kornello.orm.annotation.Table;
 import lombok.Data;
 

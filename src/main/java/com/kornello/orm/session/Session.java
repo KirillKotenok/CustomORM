@@ -18,22 +18,23 @@ import java.util.Map;
 public class Session {
     private final DataSource dataSource;
     private final String SELECT_SQL_TEMPLATE = "SELECT * FROM %s WHERE id = ?";
-    private final Map<Object, Object> sessionCache = new HashMap<>();
+    private final Map<EntityKey<?>, Object> sessionCache = new HashMap<>();
 
     @SneakyThrows
     public <T> T find(Class<T> entityType, Object id) {
-        if (sessionCache.containsKey(id)) {
-            return (T) sessionCache.get(id);
-        }
+        var entityKey = new EntityKey<T>(entityType, id);
+        var entity = sessionCache.computeIfAbsent(entityKey, this::getEntityFromDbById);
+        return entityType.cast(entity);
+    }
 
+    @SneakyThrows
+    private <T> T getEntityFromDbById(EntityKey<? extends T> entityKey) {
         @Cleanup Connection connection = dataSource.getConnection();
-        String selectSql = String.format(SELECT_SQL_TEMPLATE, getTableName(entityType));
+        String selectSql = String.format(SELECT_SQL_TEMPLATE, getTableName(entityKey.entityType()));
         @Cleanup PreparedStatement selectStatement = connection.prepareStatement(selectSql);
-        selectStatement.setObject(1, id);
+        selectStatement.setObject(1, entityKey.id());
 
-        T entityFromDB = createEntityFromResultSet(entityType, selectStatement.executeQuery());
-        sessionCache.put(id, entityFromDB);
-
+        T entityFromDB = createEntityFromResultSet(entityKey.entityType(), selectStatement.executeQuery());
         return entityFromDB;
     }
 
@@ -63,5 +64,8 @@ public class Session {
         } else {
             return field.getName();
         }
+    }
+
+    record EntityKey<T>(Class<T> entityType, Object id) {
     }
 }
