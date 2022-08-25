@@ -31,9 +31,9 @@ public class Session {
         @Cleanup PreparedStatement selectStatement = connection.prepareStatement(selectSql);
         selectStatement.setObject(1, id);
 
-        ResultSet resultSet = selectStatement.executeQuery();
-        T entityFromDB = createEntityFromResultSet(entityType, resultSet);
+        T entityFromDB = createEntityFromResultSet(entityType, selectStatement.executeQuery());
         sessionCache.put(id, entityFromDB);
+
         return entityFromDB;
     }
 
@@ -41,13 +41,10 @@ public class Session {
     private <T> T createEntityFromResultSet(Class<T> entityType, ResultSet resultSet) {
         resultSet.next();
         var entity = entityType.getConstructor().newInstance();
-        for (Field declaredField : entityType.getDeclaredFields()) {
-            if (declaredField.isAnnotationPresent(Column.class)) {
-                var name = getColumnName(declaredField);
-                var fieldFromDb = resultSet.getObject(name);
-                declaredField.setAccessible(true);
-                declaredField.set(entity, fieldFromDb);
-            }
+        for (Field field : entityType.getDeclaredFields()) {
+            var fieldFromDb = resultSet.getObject(getColumnName(field));
+            field.setAccessible(true);
+            field.set(entity, fieldFromDb);
         }
         return entity;
     }
@@ -61,6 +58,10 @@ public class Session {
     }
 
     private <T> String getColumnName(Field field) {
-        return field.getAnnotation(Column.class).name();
+        if (field.isAnnotationPresent(Column.class) && !field.getAnnotation(Column.class).name().isBlank()) {
+            return getColumnName(field);
+        } else {
+            return field.getName();
+        }
     }
 }
