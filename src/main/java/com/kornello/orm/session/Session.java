@@ -10,7 +10,6 @@ import lombok.SneakyThrows;
 
 import javax.sql.DataSource;
 import java.lang.reflect.Field;
-import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -40,9 +39,7 @@ public class Session {
         @Cleanup Connection connection = dataSource.getConnection();
         @Cleanup PreparedStatement preparedStatement =
                 connection.prepareStatement(prepareUpdateSql(entity));
-        if (preparedStatement.execute()) {
-            throw new SessionException("Cannot update entity: " + entity.toString());
-        }
+        preparedStatement.execute();
     }
 
     private String prepareUpdateSql(Object entity) throws IllegalAccessException {
